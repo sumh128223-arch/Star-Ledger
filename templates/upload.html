@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>繁星记账本 · 主页面</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg2.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg7.jpg') }}");
+      --bg-size: cover;
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Microsoft YaHei", sans-serif;
+      background: #f2f3f5;
+    }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6vh 5vw 8vh;
+
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: var(--bg-size);
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 38px);
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.95);
+    }
+
+    .subtitle {
+      margin: 8px 0 26px;
+      font-size: 14px;
+      color: #444;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    }
+
+    .flash-wrap { margin-bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .flash {
+      color: #b00020;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 8px;
+      padding: 8px 18px;
+    }
+
+    .home-card {
+      width: min(560px, 94vw);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid var(--ink);
+      border-radius: 16px;
+      padding: 16px 16px 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #666;
+      letter-spacing: 2px;
+      padding-left: 4px;
+      border-left: 4px solid #4a5aa8;
+    }
+
+    .btn-group { display: flex; gap: 12px; }
+    .btn-group .big-btn { flex: 1; }
+
+    .big-btn {
+      min-height: 92px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 10px;
+      border-radius: 12px;
+      border: 2px solid var(--ink);
+      background: var(--btn-bg, #e3f2d9);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.3;
+      color: var(--ink);
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .big-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18); }
+    .big-btn:focus-visible { outline: 3px solid #4a5aa8; outline-offset: 3px; }
+    .big-btn .icon { font-size: 28px; line-height: 1; }
+
+    .btn-green  { --btn-bg: #e3f2d9; }
+    .btn-blue   { --btn-bg: #dcecfc; }
+    .btn-pink   { --btn-bg: #fadbdf; }
+    .btn-yellow { --btn-bg: #fdf3d7; }
+
+    .user-bar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .user-bar .user-name {
+      white-space: nowrap;
+      color: inherit;
+      text-decoration: none;
+    }
+    .user-bar .user-name:hover { text-decoration: underline; }
+    .user-bar .user-logout {
+      color: #b00020;
+      text-decoration: none;
+      border-left: 1.5px solid #ccc;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .user-bar .user-logout:hover { text-decoration: underline; }
+
+    .theme-btn { border: none; background: none; font-size: 16px; cursor: pointer; padding: 0 2px; }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] {
+      --ink: #e8e8ec;
+      --btn-bg: #2d4a2f;
+    }
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .title,
+    [data-theme="dark"] .subtitle { color: #f0f0f4; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+    [data-theme="dark"] .subtitle { color: #c6c9d2; }
+    [data-theme="dark"] .section { background: rgba(28, 30, 38, 0.95); border-color: #8aa58c; }
+    [data-theme="dark"] .section-title { color: #9aa0ab; }
+    [data-theme="dark"] .big-btn { border-color: #8aa58c; color: #e8e8ec; }
+    [data-theme="dark"] .btn-green  { --btn-bg: #2d4a2f; }
+    [data-theme="dark"] .btn-blue   { --btn-bg: #22324a; }
+    [data-theme="dark"] .btn-pink   { --btn-bg: #4a2f33; }
+    [data-theme="dark"] .btn-yellow { --btn-bg: #4a3f22; }
+    [data-theme="dark"] .user-bar { background: rgba(28, 30, 38, 0.92); }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .big-btn { transition: none; }
+    }
+      @media (max-width: 640px) {
+      .page-wrap { padding: 56px 12px 26px; --bg-image: var(--bg-image-mobile); }
+      .title { font-size: 26px; }
+      .subtitle { margin: 6px 0 16px; font-size: 13px; }
+      .home-card { width: 100%; gap: 14px; }
+      .section { padding: 12px 10px 14px; }
+      .section-title { margin-bottom: 10px; font-size: 12px; }
+      .btn-group { gap: 10px; }
+      .big-btn { min-height: 74px; padding: 10px 6px; font-size: 13px; }
+      .big-btn .icon { font-size: 24px; }
+      .user-bar { top: 10px; right: 10px; padding: 5px 12px; font-size: 12px; gap: 8px; }
+    }
+    @media (max-width: 380px) {
+      .big-btn { min-height: 66px; font-size: 12px; }
+      .big-btn .icon { font-size: 21px; }
+    }
+  </style>
+</head>
+<body>
+<div class="user-bar">
+  <a class="user-name" href="{{ url_for('auth.profile') }}" title="个人设置">👤 {{ username }}</a>
+  <button type="button" id="themeBtn" class="theme-btn" onclick="toggleTheme()" title="切换深色/浅色">🌙</button>
+</div>
+
+<div class="page-wrap">
+  <h1 class="title">⭐ 繁星记账本</h1>
+  <p class="subtitle">主页面 · 支持微信 / 支付宝账单导入与手动记账</p>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="home-card">
+    <section class="section">
+      <h2 class="section-title">账单导入</h2>
+      <div class="btn-group">
+        <a class="big-btn btn-green" href="{{ url_for('import_wechat') }}">
+          <span class="icon">💬</span><span>微信账单</span>
+        </a>
+        <a class="big-btn btn-blue" href="{{ url_for('import_alipay') }}">
+          <span class="icon">💠</span><span>支付宝账单</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">手动管理</h2>
+      <div class="btn-group">
+        <a class="big-btn btn-yellow" href="{{ url_for('manual_add') }}">
+          <span class="icon">✍️</span><span>手动记账</span>
+        </a>
+        <a class="big-btn btn-blue" href="{{ url_for('records') }}">
+          <span class="icon">✏️</span><span>编辑 / 查询记录</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">自动记账</h2>
+      <div class="btn-group">
+        <a class="big-btn btn-pink" href="{{ url_for('recurring') }}">
+          <span class="icon">🔄</span><span>固定收支</span>
+        </a>
+        <a class="big-btn btn-yellow" href="{{ url_for('budgets') }}">
+          <span class="icon">💰</span><span>预算管理</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">统计分析</h2>
+      <div class="btn-group">
+        <a class="big-btn btn-pink" href="{{ url_for('stats') }}">
+          <span class="icon">📊</span><span>查看统计</span>
+        </a>
+        <a class="big-btn btn-yellow" href="{{ url_for('auth.profile') }}">
+          <span class="icon">👤</span><span>个人设置</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

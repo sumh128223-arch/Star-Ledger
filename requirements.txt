@@ -1,0 +1,7 @@
+Flask
+pandas
+PyMySQL
+openpyxl
+waitress
+cryptography
+tzdata

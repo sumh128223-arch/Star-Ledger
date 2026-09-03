@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>个人设置 - 繁星记账本</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg4.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg7.jpg') }}");
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+      --muted: #555;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Microsoft YaHei", sans-serif;
+      background: #f2f3f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .profile-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+      padding: 32px 30px 28px;
+      backdrop-filter: blur(4px);
+    }
+
+    .brand {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .brand-sub {
+      margin: 0 0 20px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .flash-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .flash {
+      color: #b00020;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fdecea;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 8px 14px;
+      text-align: center;
+    }
+
+    .panel {
+      border: 2px solid #1a1a1a;
+      border-radius: 12px;
+      padding: 16px 16px 18px;
+      margin-bottom: 16px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+    .panel-title {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--ink);
+      padding-left: 8px;
+      border-left: 4px solid #4a5aa8;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 2px solid #d9d9d9;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .field input:focus {
+      border-color: #7ea86a;
+      box-shadow: 0 0 0 3px rgba(126, 168, 106, 0.25);
+    }
+    .field input::placeholder { color: #aaa; }
+
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 46px; }
+    .toggle-pwd {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: none;
+      font-size: 16px;
+      cursor: pointer;
+      color: #777;
+      padding: 6px;
+    }
+    .toggle-pwd:hover { color: var(--ink); }
+
+    .hint {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .save-btn {
+      width: 100%;
+      margin-top: 4px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 2.5px solid #1a1a1a;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+    .save-btn:focus-visible { outline: 3px solid #4a5aa8; outline-offset: 3px; }
+    .save-btn:active { transform: translateY(0); }
+    .btn-green { background: #e3f2d9; }
+    .btn-pink { background: #fadbdf; }
+    .btn-blue { background: #dcecfc; }
+    .doc-btns { display: flex; gap: 10px; }
+    .btn-logout {
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      background: #fde4e6;
+      color: #b00020;
+    }
+
+    .alt-line {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .alt-line a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .alt-line a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .page-wrap {
+        --bg-image: var(--bg-image-mobile);
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 56px 12px 26px;
+        overflow-y: auto;
+      }
+      .profile-card { margin: 0 auto; }
+    }
+    .theme-btn-float {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid #1a1a1a;
+      background: rgba(255, 255, 255, 0.88);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .profile-card { background: rgba(28, 30, 38, 0.95); }
+    [data-theme="dark"] .brand { color: #e8e8ec; }
+    [data-theme="dark"] .brand-sub { color: #9aa0ab; }
+    [data-theme="dark"] .panel { background: rgba(35, 37, 46, 0.85); border-color: #8aa58c; }
+    [data-theme="dark"] .panel-title, [data-theme="dark"] .field label { color: #e8e8ec; }
+    [data-theme="dark"] .field input { background: #23252e; color: #e8e8ec; border-color: #3a3d49; }
+    [data-theme="dark"] .hint { color: #9aa0ab; }
+    [data-theme="dark"] .save-btn { border-color: #8aa58c; color: #e8e8ec; }
+    [data-theme="dark"] .btn-green { background: #2d4a2f; }
+    [data-theme="dark"] .btn-pink { background: #4a2f33; }
+    [data-theme="dark"] .btn-blue { background: #27415e; }
+    [data-theme="dark"] .btn-logout { background: #5a262b; color: #ffb3b8; }
+    [data-theme="dark"] .alt-line { color: #9aa0ab; }
+    [data-theme="dark"] .alt-line a { color: #8fd07a; }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+
+    @media (max-width: 480px) {
+      .profile-card { padding: 24px 20px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="profile-card">
+      <h1 class="brand">个人设置</h1>
+      <p class="brand-sub">账号：{{ user.username }} · 当前昵称：{{ user.nickname or user.username }}</p>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      <div class="panel">
+        <h2 class="panel-title">修改昵称</h2>
+        <form method="post" action="{{ url_for('auth.profile') }}">
+          <input type="hidden" name="action" value="nickname">
+          <div class="field">
+            <label for="nickname">昵称</label>
+            <input id="nickname" name="nickname" type="text" value="{{ user.nickname or user.username }}" placeholder="2-20 位中文、字母、数字或下划线" required autocomplete="nickname">
+            <p class="hint">不填则默认使用用户名</p>
+          </div>
+          <button type="submit" class="save-btn btn-green">保存昵称</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">修改密码</h2>
+        <form method="post" action="{{ url_for('auth.profile') }}">
+          <input type="hidden" name="action" value="password">
+          <div class="field">
+            <label for="old_password">当前密码</label>
+            <div class="password-wrap">
+              <input id="old_password" name="old_password" type="password" placeholder="请输入当前密码" required autocomplete="current-password">
+              <button type="button" class="toggle-pwd" data-target="old_password" aria-label="显示/隐藏密码">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="new_password">新密码</label>
+            <div class="password-wrap">
+              <input id="new_password" name="new_password" type="password" placeholder="至少 4 位" required autocomplete="new-password">
+              <button type="button" class="toggle-pwd" data-target="new_password" aria-label="显示/隐藏密码">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="confirm_password">确认新密码</label>
+            <input id="confirm_password" name="confirm_password" type="password" placeholder="再输入一次新密码" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="save-btn btn-pink">保存密码</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">用户使用说明</h2>
+        <div class="doc-btns">
+          <a class="save-btn btn-green" href="{{ url_for('manual') }}" target="_blank">📖 在线预览</a>
+          <a class="save-btn btn-blue" href="{{ url_for('manual', download=1) }}">⬇️ 下载到本地</a>
+        </div>
+        <p class="hint">使用手册为 PDF 格式，可在线预览或下载到本地</p>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">账号操作</h2>
+        <a class="save-btn btn-logout" href="{{ url_for('auth.logout') }}">退出登录</a>
+      </div>
+
+      <p class="alt-line"><a href="{{ url_for('index') }}">← 返回主页面</a></p>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.toggle-pwd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? '🙈' : '👁️';
+        btn.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+      });
+    });
+  </script>
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>预算管理 - 繁星记账本</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg1.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg8.jpg') }}");
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+      --muted: #666;
+      --card-bg: rgba(255, 255, 255, 0.94);
+      --green: #e3f2d9;
+      --green-border: #1a1a1a;
+      --danger: #d64545;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f2f3f5; }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6vh 5vw 8vh;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.95);
+    }
+    .subtitle {
+      margin: 8px 0 16px;
+      font-size: 14px;
+      color: #444;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    }
+
+    .flash-wrap { margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .flash {
+      color: #b00020;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 8px;
+      padding: 8px 18px;
+    }
+
+    .card {
+      width: min(520px, 94vw);
+      background: var(--card-bg);
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      padding: 22px 22px 24px;
+      margin-top: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      padding-left: 8px;
+      border-left: 4px solid #4a5aa8;
+    }
+
+    .month-nav {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .month-nav input[type="month"] {
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      border: 2px solid #b9bdc4;
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fff;
+    }
+    .month-nav button {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--ink);
+      background: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+    .budget-row { margin-bottom: 16px; }
+    .budget-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+    .budget-bar-wrap {
+      height: 8px;
+      background: #eceef1;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .budget-bar {
+      height: 100%;
+      background: #4a90d9;
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+    .budget-row.over .budget-bar { background: var(--danger); }
+    .budget-foot { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .budget-row.over .budget-foot { color: var(--danger); font-weight: 700; }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .field input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 2px solid #d9d9d9;
+      border-radius: 10px;
+      outline: none;
+    }
+    .field input:focus { border-color: #7ea86a; box-shadow: 0 0 0 3px rgba(126, 168, 106, 0.25); }
+
+    .cat-line { display: flex; gap: 10px; align-items: center; }
+    .cat-line input[type="number"] { flex: 1; }
+
+    .save-btn {
+      width: 100%;
+      margin-top: 6px;
+      padding: 13px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      background: var(--green);
+      border: 2.5px solid var(--green-border);
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .save-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
+
+    .del-btn {
+      padding: 7px 12px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      color: #b00020;
+      background: #fde3e3;
+      border: 1.5px solid #b00020;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+    }
+    .nav-links a {
+      color: #333;
+      font-weight: 700;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1.5px solid #333;
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 14px;
+    }
+    .nav-links a:hover { text-decoration: underline; }
+
+    .user-bar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .user-bar .user-name { white-space: nowrap; color: inherit; text-decoration: none; }
+    .user-bar .user-name:hover { text-decoration: underline; }
+    .user-bar .user-logout {
+      color: #b00020;
+      text-decoration: none;
+      border-left: 1.5px solid #ccc;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .user-bar .user-logout:hover { text-decoration: underline; }
+    .theme-btn {
+      border: none;
+      background: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+
+    @media (max-width: 640px) {
+      .page-wrap { --bg-image: var(--bg-image-mobile); padding: 56px 14px 28px; }
+      .title { font-size: 24px; }
+      .card { width: 100%; padding: 16px 14px 18px; }
+      .user-bar { top: 10px; right: 10px; padding: 5px 12px; font-size: 12px; gap: 8px; }
+      .nav-links { gap: 12px; }
+      .nav-links a { padding: 6px 12px; font-size: 13px; }
+    }
+
+    [data-theme="dark"] {
+      --ink: #e8e8ec;
+      --muted: #9aa0ab;
+      --card-bg: rgba(28, 30, 38, 0.95);
+      --green: #2d4a2f;
+      --green-border: #8aa58c;
+      --danger: #ff7b72;
+    }
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .title,
+    [data-theme="dark"] .subtitle { color: #f0f0f4; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+    [data-theme="dark"] .subtitle { color: #c6c9d2; }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+    [data-theme="dark"] .field input[type="number"],
+    [data-theme="dark"] .month-nav input[type="month"] {
+      background: #23252e;
+      color: #e8e8ec;
+      border-color: #3a3d49;
+    }
+    [data-theme="dark"] .month-nav button { background: #23252e; color: #e8e8ec; border-color: #8aa58c; }
+    [data-theme="dark"] .budget-bar-wrap { background: #1b1d24; }
+    [data-theme="dark"] .user-bar { background: rgba(28, 30, 38, 0.92); }
+    [data-theme="dark"] .nav-links a { background: rgba(28, 30, 38, 0.9); color: #d5d7de; border-color: #6a6e7a; }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+  <h1 class="title">💰 预算管理</h1>
+  <p class="subtitle">设置每月支出预算，统计页会显示进度并提醒超支</p>
+
+  <div class="month-nav">
+    <button type="button" onclick="shiftMonth(-1)">‹</button>
+    <form method="get" action="{{ url_for('budgets') }}" style="display:inline">
+      <input type="month" name="month" id="monthInput" value="{{ month_key }}" onchange="this.form.submit()">
+    </form>
+    <button type="button" onclick="shiftMonth(1)">›</button>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if status %}
+  <div class="card">
+    <h2>{{ month_key }} 预算进度</h2>
+    {% for b in status %}
+    <div class="budget-row {{ 'over' if b.over }}">
+      <div class="budget-head">
+        <span>{{ b.name }}</span>
+        <span>¥{{ "%.2f"|format(b.spent) }} / ¥{{ "%.2f"|format(b.budget) }}</span>
+      </div>
+      <div class="budget-bar-wrap">
+        <div class="budget-bar" style="width:{{ [b.pct, 100]|min }}%;"></div>
+      </div>
+      <div class="budget-foot">
+        {{ b.pct }}%{% if b.over %} · 已超支 ¥{{ "%.2f"|format(b.spent - b.budget) }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form class="card" method="post">
+    <h2>总预算</h2>
+    <div class="field">
+      <label for="total_budget">本月总支出预算（元，不填 = 不设）</label>
+      <div class="cat-line">
+        <input id="total_budget" type="number" name="total_budget" min="0.01" step="0.01" placeholder="如：3000" value="{{ budgets.get('total', '') if budgets.get('total') else '' }}">
+        {% if budgets.get('total') %}
+        <button type="submit" class="del-btn" name="action" value="delete" formaction="{{ url_for('budgets', month=month_key) }}?action=delete&category_id=total">删除</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <h2>分类预算</h2>
+    {% for c in expense_cats %}
+    <div class="field">
+      <label>{{ c.name }}</label>
+      <div class="cat-line">
+        <input type="number" name="amount_{{ c.id }}" min="0.01" step="0.01" placeholder="不填 = 不设预算" value="{{ budgets.get(c.id, '') if budgets.get(c.id) else '' }}">
+        {% if budgets.get(c.id) %}
+        <button type="submit" class="del-btn" name="action" value="delete" formaction="{{ url_for('budgets', month=month_key) }}?action=delete&category_id={{ c.id }}">删除</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="save-btn">保存预算</button>
+  </form>
+
+  <div class="nav-links">
+    <a href="{{ url_for('index') }}">← 返回主页面</a>
+    <a href="{{ url_for('stats') }}">查看统计</a>
+  </div>
+</div>
+
+<script>
+  function shiftMonth(delta) {
+    const inp = document.getElementById('monthInput');
+    const [y, m] = inp.value.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    inp.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    inp.form.submit();
+  }
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

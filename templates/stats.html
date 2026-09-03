@@ -1,0 +1,1388 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>统计 - {{ day if view == 'day' else (year if view == 'year' else year_month) }}</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg3.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg6.jpg') }}");
+      --green: #29a96a;
+      --green-light: #e8f7ef;
+      --green-bg: #1db060;
+      --yellow: #f5a623;
+      --yellow-bg: #f5a623;
+      --ink: #1a1a1a;
+      --muted: #666;
+      --border: #eee;
+      --card-bg: #fff;
+      --page-bg: #f4f5f7;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--page-bg);
+      min-height: 100vh;
+      width: 75%;
+      max-width: 75%;
+      margin: 0 auto;
+    }
+
+    /* ── 全屏背景图层（画在内容后面，不挡内容） ── */
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.00), rgba(255, 255, 255, 0.00)),
+        var(--bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    /* ── 顶部 Hero 区域 ── */
+    .hero {
+      padding: 20px 20px 0;
+      border-radius: 0 0 28px 28px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s ease;
+    }
+    .hero.mode-expense { background: linear-gradient(160deg, #2dbe76 0%, #1a9455 100%); }
+    .hero.mode-income  { background: linear-gradient(160deg, #f5a623 0%, #e08800 100%); }
+
+    /* 月份选择行 */
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .month-nav {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: #fff;
+    }
+    .month-nav button {
+      background: rgba(255,255,255,0.25);
+      border: none;
+      color: #fff;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .month-nav button:first-of-type { margin-right: 2px; }
+    .month-nav button:last-of-type { margin-left: 2px; }
+    .month-nav .month-label {
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .month-nav input[type="month"] {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      width: 150px;
+      margin-left: 4px;
+      text-align: left;
+    }
+    .month-nav input[type="month"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.8;
+    }
+    .month-nav input[type="date"] {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      width: 150px;
+      margin-left: 4px;
+      text-align: left;
+    }
+    .month-nav input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.8;
+    }
+
+    /* 支出/收入 Tab */
+    .type-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .type-tab {
+      padding: 5px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+      transition: all 0.2s;
+    }
+    .type-tab.active {
+      background: rgba(255,255,255,0.9);
+      color: var(--ink);
+    }
+    .mode-income .type-tab.active { color: #c47900; }
+    .mode-expense .type-tab.active { color: #1a7a4a; }
+
+    /* 总金额 */
+    .hero-amount {
+      margin: 8px 0 4px;
+      color: #fff;
+    }
+    .hero-amount .label {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-bottom: 2px;
+    }
+    .hero-amount .big-num {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .hero-amount .big-num .currency {
+      font-size: 22px;
+      font-weight: 600;
+      margin-right: 2px;
+    }
+
+    /* 结余小卡片 */
+    .balance-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 5px 14px;
+      color: #fff;
+      font-size: 13px;
+      margin: 8px 0 20px;
+    }
+    .balance-chip .bal-val {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    /* ── 内容区 ── */
+    .content {
+      padding: 0 12px 24px;
+      margin-top: -2px;
+    }
+
+    .section-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      margin-top: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 14px;
+    }
+
+    /* ── 饼图 + 图例 ── */
+    .pie-wrap {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .pie-canvas-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      flex-shrink: 0;
+    }
+    .pie-legend {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-name { flex: 1; }
+    .legend-pct { font-weight: 600; color: var(--ink); }
+
+    /* ── 分类排行 ── */
+    .rank-list { list-style: none; }
+    .rank-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+      cursor: pointer;
+    }
+    .rank-item:last-child { border-bottom: none; }
+
+    .rank-info { flex: 1; min-width: 0; }
+    .rank-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .rank-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: #f0f0f0;
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .rank-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+    .rank-amount {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      text-align: right;
+      min-width: 72px;
+    }
+    .rank-arrow {
+      color: #ccc;
+      font-size: 12px;
+    }
+
+    /* 展开更多 */
+    .show-more {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px 0;
+      user-select: none;
+    }
+    .show-more:hover { color: var(--ink); }
+
+    /* ── 每日对比柱状图 ── */
+    .chart-canvas-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .chart-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+    }
+
+    /* ── 支出/收入 Top 排行（当月最高记录）── */
+    .tx-list { list-style: none; }
+    .tx-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .tx-item:last-child { border-bottom: none; }
+    .tx-rank-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .tx-rank-num.top1 { background: #ffd700; color: #8a6000; }
+    .tx-rank-num.top2 { background: #d8d8d8; color: #555; }
+    .tx-rank-num.top3 { background: #e8b87a; color: #7a4a00; }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-merchant {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tx-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .tx-amount {
+      font-size: 15px; font-weight: 700;
+      text-align: right; min-width: 72px;
+    }
+    .tx-amount.expense { color: #cc2200; }
+    .tx-amount.income  { color: #1a8c4e; }
+
+    /* ── 空状态 ── */
+    .empty {
+      text-align: center;
+      padding: 30px 0 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ── 右上角用户栏 ── */
+    .user-bar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #e3e3e3;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+    .user-bar .user-name {
+      white-space: nowrap;
+      color: inherit;
+      text-decoration: none;
+    }
+    .user-bar .user-name:hover { text-decoration: underline; }
+    .user-bar .user-logout {
+      color: #b00020;
+      text-decoration: none;
+      border-left: 1px solid #ddd;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .user-bar .user-logout:hover { text-decoration: underline; }
+    .hero-back {
+      position: absolute;
+      right: 14px;
+      bottom: 12px;
+      z-index: 6;
+      color: #333;
+      font-weight: 700;
+      text-decoration: none;
+      background: rgba(255,255,255,0.92);
+      border: 1.5px solid #333;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+    .hero-back:hover { text-decoration: underline; }
+      @media (max-width: 640px) {
+      .page-bg { --bg-image: var(--bg-image-mobile); }
+      body { width: 100%; max-width: 100%; }
+      .hero { padding: 14px 14px 0; }
+      .hero-amount .big-num { font-size: 30px; }
+      .hero-amount .big-num .currency { font-size: 18px; }
+      .content { padding: 0 10px 20px; }
+      .section-card { padding: 14px 12px; }
+      .pie-wrap { gap: 12px; }
+      .user-bar { top: 10px; right: 10px; padding: 5px 12px; font-size: 12px; gap: 8px; }
+      .hero-top { flex-wrap: wrap; justify-content: center; gap: 8px 6px; }
+      .month-nav { gap: 8px; }
+      .month-nav button { width: 24px; height: 24px; font-size: 14px; }
+      .month-nav input[type="month"] { width: 100px; font-size: 15px; margin-left: 0; }
+      .month-nav input[type="date"] { width: 122px; font-size: 15px; margin-left: 0; }
+      .month-nav input[type="number"] { width: 62px !important; font-size: 15px !important; }
+      .view-tabs { margin-left: 0; }
+      .view-tab { padding: 4px 10px; font-size: 12px; }
+      .type-tab { padding: 4px 12px; font-size: 13px; }
+      .cmp-chips { padding-right: 96px; }
+    }
+
+    /* ── 月/年视图切换 ── */
+    .view-tabs { display: flex; gap: 4px; margin-left: 10px; }
+    .view-tab {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+      transition: all 0.2s;
+    }
+    .view-tab.active { background: rgba(255,255,255,0.9); color: var(--ink); }
+
+    /* ── 环比 / 同比 ── */
+    .cmp-chips { display: flex; gap: 10px; margin: 6px 0 16px; flex-wrap: wrap; }
+    .cmp-chip {
+      background: rgba(255,255,255,0.16);
+      border-radius: 16px;
+      padding: 6px 12px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .cmp-chip .up   { color: #ffe08a; font-weight: 700; }
+    .cmp-chip .down { color: #b9f6ca; font-weight: 700; }
+
+    /* ── 预算进度 ── */
+    .budget-row { margin-bottom: 14px; }
+    .budget-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+    .budget-bar-wrap { height: 8px; background: #eceef1; border-radius: 4px; overflow: hidden; }
+    .budget-bar { height: 100%; background: #4a90d9; border-radius: 4px; transition: width .4s ease; }
+    .budget-row.over .budget-bar { background: #d64545; }
+    .budget-foot { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .budget-row.over .budget-foot { color: #d64545; font-weight: 700; }
+
+    /* ── 年度趋势图 ── */
+    .year-chart-wrap { position: relative; height: 260px; }
+
+    /* ── 分类明细弹层 ── */
+    .detail-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    .detail-modal.open { display: flex; }
+    .detail-box {
+      width: min(480px, 94vw);
+      max-height: 80vh;
+      background: #fff;
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+    .detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .detail-head span { font-size: 16px; font-weight: 800; color: var(--ink); }
+    .detail-close {
+      border: none;
+      background: none;
+      font-size: 16px;
+      cursor: pointer;
+      color: #888;
+      padding: 4px 6px;
+    }
+    .detail-sum { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .detail-list { overflow-y: auto; }
+    .detail-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .detail-item:last-child { border-bottom: none; }
+    .detail-item .d-info { flex: 1; min-width: 0; }
+    .detail-item .d-merchant {
+      color: var(--ink);
+      font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .detail-item .d-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .detail-item .d-amount { font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .detail-empty { text-align: center; color: var(--muted); padding: 20px 0; font-size: 13px; }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] {
+      --ink: #e8e8ec;
+      --muted: #9aa0ab;
+      --border: #2a2d37;
+      --card-bg: #1c1e26;
+      --page-bg: #12141a;
+    }
+    [data-theme="dark"] body { background: var(--page-bg); }
+    [data-theme="dark"] .page-bg {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.78), rgba(12, 14, 20, 0.78)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .section-card { background: var(--card-bg); }
+    [data-theme="dark"] .section-title,
+    [data-theme="dark"] .rank-name,
+    [data-theme="dark"] .rank-amount,
+    [data-theme="dark"] .tx-merchant,
+    [data-theme="dark"] .tx-amount,
+    [data-theme="dark"] .budget-head,
+    [data-theme="dark"] .legend-pct,
+    [data-theme="dark"] .detail-box,
+    [data-theme="dark"] .detail-head span,
+    [data-theme="dark"] .detail-item .d-merchant,
+    [data-theme="dark"] .detail-item .d-amount { color: #e8e8ec; }
+    [data-theme="dark"] .tx-time,
+    [data-theme="dark"] .legend-name,
+    [data-theme="dark"] .show-more,
+    [data-theme="dark"] .empty,
+    [data-theme="dark"] .detail-sum,
+    [data-theme="dark"] .detail-item .d-time { color: #9aa0ab; }
+    [data-theme="dark"] .tx-item,
+    [data-theme="dark"] .rank-item,
+    [data-theme="dark"] .detail-item { border-bottom-color: #2a2d37; }
+    [data-theme="dark"] .tx-rank-num { background: #2a2d37; color: #c6c9d2; }
+    [data-theme="dark"] .rank-bar-wrap,
+    [data-theme="dark"] .budget-bar-wrap { background: #1b1d24; }
+    [data-theme="dark"] .user-bar { background: rgba(28, 30, 38, 0.92); border-color: #6a6e7a; }
+    [data-theme="dark"] .hero-back { background: rgba(28, 30, 38, 0.92); color: #d5d7de; border-color: #6a6e7a; }
+    [data-theme="dark"] .detail-box { background: #1c1e26; border-color: #8aa58c; }
+    [data-theme="dark"] .hero .view-tab.active { color: #1a1a1a; }
+    .theme-btn { border: none; background: none; font-size: 16px; cursor: pointer; padding: 0 2px; }
+    [data-theme="dark"] .theme-btn { color: #e8e8ec; }
+  </style>
+</head>
+<body>
+<div class="page-bg"></div>
+{# ── 从后端接收所有数据 ── #}
+{% set cur_mode = view_mode %}  {# 'expense' or 'income' #}
+{% set is_expense = (cur_mode == 'expense') %}
+
+<!-- Hero -->
+<div class="hero mode-{{ cur_mode }}" id="hero">
+  <div class="hero-top">
+    {% if view == 'day' %}
+    <div class="month-nav">
+      <button onclick="shiftDay(-1)">‹</button>
+      <form id="dayForm" method="get" action="{{ url_for('stats') }}" style="display:inline">
+        <input type="hidden" name="mode" id="hiddenMode" value="{{ cur_mode }}">
+        <input type="hidden" name="view" value="day">
+        <input type="date" name="day" id="dayInput" value="{{ day }}"
+               onchange="document.getElementById('dayForm').submit()">
+      </form>
+      <button onclick="shiftDay(1)">›</button>
+    </div>
+    {% elif view != 'year' %}
+    <div class="month-nav">
+      <button onclick="shiftMonth(-1)">‹</button>
+      <form id="monthForm" method="get" action="{{ url_for('stats') }}" style="display:inline">
+        <input type="hidden" name="mode" id="hiddenMode" value="{{ cur_mode }}">
+        <input type="hidden" name="view" id="hiddenView" value="month">
+        <input type="month" name="month" id="monthInput" value="{{ year_month }}"
+               onchange="document.getElementById('monthForm').submit()">
+      </form>
+      <button onclick="shiftMonth(1)">›</button>
+    </div>
+    {% else %}
+    <div class="month-nav">
+      <button onclick="shiftYear(-1)">‹</button>
+      <form id="yearForm" method="get" action="{{ url_for('stats') }}" style="display:inline">
+        <input type="hidden" name="mode" id="hiddenMode" value="{{ cur_mode }}">
+        <input type="hidden" name="view" value="year">
+        <input type="number" name="year" id="yearInput" value="{{ year }}" min="2000" max="2100"
+               style="background:transparent;border:none;color:#fff;font-size:17px;font-weight:600;width:80px;font-family:inherit;outline:none;"
+               onchange="this.form.submit()">
+        <span style="color:#fff;font-size:14px;">年</span>
+      </form>
+      <button onclick="shiftYear(1)">›</button>
+    </div>
+    {% endif %}
+    <div class="view-tabs">
+      <button class="view-tab {% if view == 'day' %}active{% endif %}"
+              onclick="switchView('day')">日</button>
+      <button class="view-tab {% if view != 'year' and view != 'day' %}active{% endif %}"
+              onclick="switchView('month')">月</button>
+      <button class="view-tab {% if view == 'year' %}active{% endif %}"
+              onclick="switchView('year')">年</button>
+    </div>
+    <div class="type-tabs">
+      <button class="type-tab {% if is_expense %}active{% endif %}"
+              onclick="switchMode('expense')">支出</button>
+      <button class="type-tab {% if not is_expense %}active{% endif %}"
+              onclick="switchMode('income')">收入</button>
+    </div>
+  </div>
+
+  <div class="hero-amount">
+    <div class="label">
+      {% if view == 'year' %}全年{{ "支出" if is_expense else "收入" }}
+      {% elif view == 'day' %}当日{{ "支出" if is_expense else "收入" }}
+      {% else %}本月{{ "支出" if is_expense else "收入" }}{% endif %}
+    </div>
+    <div class="big-num">
+      <span class="currency">¥</span>{{ "%.2f"|format(summary.expense if is_expense else summary.income) }}
+    </div>
+  </div>
+
+  {% if view == 'year' %}
+  <div class="cmp-chips">
+    <div class="cmp-chip">年度结余 ¥{{ "%.2f"|format(summary.income - summary.expense) }}</div>
+    {% if prev_summary.expense %}
+    <div class="cmp-chip">支出同比
+      {% set c = ((summary.expense - prev_summary.expense) / prev_summary.expense * 100) %}
+      <span class="{{ 'up' if c > 0 else 'down' }}">{{ '%+.1f'|format(c) }}%</span>
+      <span style="opacity:.7">vs {{ prev_year }}</span>
+    </div>
+    {% endif %}
+    {% if prev_summary.income %}
+    <div class="cmp-chip">收入同比
+      {% set c = ((summary.income - prev_summary.income) / prev_summary.income * 100) %}
+      <span class="{{ 'up' if c > 0 else 'down' }}">{{ '%+.1f'|format(c) }}%</span>
+      <span style="opacity:.7">vs {{ prev_year }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% elif view == 'day' %}
+  <div class="cmp-chips">
+    <div class="cmp-chip">当日结余 ¥{{ "%.2f"|format(summary.income - summary.expense) }}</div>
+  </div>
+  {% else %}
+  <div class="cmp-chips">
+    <div class="cmp-chip">本月结余 ¥{{ "%.2f"|format(summary.income - summary.expense) }}</div>
+    {% if is_expense %}
+      {% if prev_summary.expense %}
+      {% set c = ((summary.expense - prev_summary.expense) / prev_summary.expense * 100) %}
+      <div class="cmp-chip">环比上月 <span class="{{ 'up' if c > 0 else 'down' }}">{{ '%+.1f'|format(c) }}%</span></div>
+      {% else %}
+      <div class="cmp-chip">环比上月（无数据）</div>
+      {% endif %}
+    {% else %}
+      {% if prev_summary.income %}
+      {% set c = ((summary.income - prev_summary.income) / prev_summary.income * 100) %}
+      <div class="cmp-chip">环比上月 <span class="{{ 'up' if c > 0 else 'down' }}">{{ '%+.1f'|format(c) }}%</span></div>
+      {% else %}
+      <div class="cmp-chip">环比上月（无数据）</div>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+  <a class="hero-back" href="{{ url_for('index') }}">← 返回主页面</a>
+</div>
+
+<!-- 内容区 -->
+<div class="content">
+
+
+  {% if view == 'month' %}
+  {% if budget_items %}
+  <div class="section-card">
+    <div class="section-title">预算进度 · {{ year_month }}</div>
+    {% for b in budget_items %}
+    <div class="budget-row {{ 'over' if b.over }}">
+      <div class="budget-head">
+        <span>{{ b.name }}</span>
+        <span>¥{{ "%.2f"|format(b.spent) }} / ¥{{ "%.2f"|format(b.budget) }}</span>
+      </div>
+      <div class="budget-bar-wrap">
+        <div class="budget-bar" style="width:{{ [b.pct, 100]|min }}%;"></div>
+      </div>
+      <div class="budget-foot">
+        {{ b.pct }}%{% if b.over %} · 已超支 ¥{{ "%.2f"|format(b.spent - b.budget) }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <div class="show-more" style="text-align:left;padding:2px 0 0;">
+      <a href="{{ url_for('budgets', month=year_month) }}" style="color:#4a5aa8;font-weight:700;text-decoration:none;">设置/修改预算 ›</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 1. 分类占比 -->
+  <div class="section-card">
+    <div class="section-title">{{ "支出" if is_expense else "收入" }}构成</div>
+    {% if by_category %}
+    <div class="pie-wrap">
+      <div class="pie-canvas-wrap">
+        <canvas id="categoryPie"></canvas>
+      </div>
+      <div class="pie-legend" id="pieLegend"></div>
+    </div>
+
+    <!-- 分类排行 -->
+    <ul class="rank-list" id="rankList">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[:5] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if by_category|length > 5 %}
+    <ul class="rank-list" id="moreList" style="display:none">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[5:] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="showMoreBtn" onclick="toggleMore()">展开更多 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">这个月还没有{{ "支出" if is_expense else "收入" }}记录</div>
+    {% endif %}
+  </div>
+
+  <!-- 2. 每日对比 -->
+  <div class="section-card">
+    <div class="section-title">每日对比</div>
+    {% if daily_trend %}
+    <div class="chart-canvas-wrap">
+      <canvas id="trendBar"></canvas>
+    </div>
+    <div class="chart-note" id="trendNote" style="display:none">单日金额差距过大时，图表会压缩中间区间显示，具体金额以悬浮提示为准</div>
+    {% else %}
+    <div class="empty">暂无数据</div>
+    {% endif %}
+  </div>
+
+  <!-- 3. 当月排行（单笔金额最高的交易） -->
+  <div class="section-card">
+    <div class="section-title">{{ year_month[5:] }}月{{ "支出" if is_expense else "收入" }}排行</div>
+    {% if top_transactions %}
+    <ul class="tx-list">
+      {% for tx in top_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num {{ 'top1' if loop.index==1 else ('top2' if loop.index==2 else ('top3' if loop.index==3 else '')) }}">
+          {{ loop.index }}
+        </div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if extra_transactions %}
+    <ul class="tx-list" id="txExtraList" style="display:none">
+      {% for tx in extra_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num">{{ loop.index + top_transactions|length }}</div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="txShowMoreBtn" onclick="toggleAllTx()">全部排行 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">暂无记录</div>
+    {% endif %}
+  </div>
+
+  {% elif view == 'day' %}
+  <!-- 当天收支构成 -->
+  <div class="section-card">
+    <div class="section-title">{{ day }} · {{ "支出" if is_expense else "收入" }}构成</div>
+    {% if by_category %}
+    <div class="pie-wrap">
+      <div class="pie-canvas-wrap">
+        <canvas id="categoryPie"></canvas>
+      </div>
+      <div class="pie-legend" id="pieLegend"></div>
+    </div>
+    <ul class="rank-list" id="rankList">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[:5] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if by_category|length > 5 %}
+    <ul class="rank-list" id="moreList" style="display:none">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[5:] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="showMoreBtn" onclick="toggleMore()">展开更多 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">这一天还没有{{ "支出" if is_expense else "收入" }}记录</div>
+    {% endif %}
+  </div>
+
+  <!-- 当天排行（单笔金额最高的交易） -->
+  <div class="section-card">
+    <div class="section-title">{{ day }} · {{ "支出" if is_expense else "收入" }}排行</div>
+    {% if top_transactions %}
+    <ul class="tx-list">
+      {% for tx in top_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num {{ 'top1' if loop.index==1 else ('top2' if loop.index==2 else ('top3' if loop.index==3 else '')) }}">
+          {{ loop.index }}
+        </div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if extra_transactions %}
+    <ul class="tx-list" id="txExtraList" style="display:none">
+      {% for tx in extra_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num">{{ loop.index + top_transactions|length }}</div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="txShowMoreBtn" onclick="toggleAllTx()">全部排行 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">暂无记录</div>
+    {% endif %}
+  </div>
+
+  {% else %}
+
+  <!-- 年度：12 个月收支趋势 -->
+  <div class="section-card">
+    <div class="section-title">{{ year }} 年每月收支趋势</div>
+    <div class="year-chart-wrap">
+      <canvas id="yearTrendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 年度分类构成 -->
+  <div class="section-card">
+    <div class="section-title">{{ year }} 年{{ "支出" if is_expense else "收入" }}构成</div>
+    {% if by_category %}
+    <div class="pie-wrap">
+      <div class="pie-canvas-wrap">
+        <canvas id="categoryPie"></canvas>
+      </div>
+      <div class="pie-legend" id="pieLegend"></div>
+    </div>
+    <ul class="rank-list" id="rankList">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[:5] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if by_category|length > 5 %}
+    <ul class="rank-list" id="moreList" style="display:none">
+      {% set max_val = by_category[0].total %}
+      {% for item in by_category[5:] %}
+      <li class="rank-item" onclick="showCategoryDetail('{{ item.category }}')">
+        <div class="rank-info">
+          <div class="rank-name">{{ item.category }}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:{{ (item.total / max_val * 100)|int }}%;background:{{ item.color }};"></div>
+          </div>
+        </div>
+        <div class="rank-amount">¥{{ "%.2f"|format(item.total) }}</div>
+        <div class="rank-arrow">›</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="showMoreBtn" onclick="toggleMore()">展开更多 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">{{ year }} 年还没有{{ "支出" if is_expense else "收入" }}记录</div>
+    {% endif %}
+  </div>
+
+  <!-- 年度排行 -->
+  <div class="section-card">
+    <div class="section-title">{{ year }} 年{{ "支出" if is_expense else "收入" }}排行</div>
+    {% if top_transactions %}
+    <ul class="tx-list">
+      {% for tx in top_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num {{ 'top1' if loop.index==1 else ('top2' if loop.index==2 else ('top3' if loop.index==3 else '')) }}">
+          {{ loop.index }}
+        </div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if extra_transactions %}
+    <ul class="tx-list" id="txExtraList" style="display:none">
+      {% for tx in extra_transactions %}
+      <li class="tx-item">
+        <div class="tx-rank-num">{{ loop.index + top_transactions|length }}</div>
+        <div class="tx-info">
+          <div class="tx-merchant">{{ tx.merchant or tx.product or "（无描述）" }}</div>
+          <div class="tx-time">{{ tx.category }} · {{ tx.trans_time }}</div>
+        </div>
+        <div class="tx-amount {{ cur_mode }}">
+          {{ "-" if is_expense else "+" }}{{ "%.2f"|format(tx.amount) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="show-more" id="txShowMoreBtn" onclick="toggleAllTx()">全部排行 ▾</div>
+    {% endif %}
+    {% else %}
+    <div class="empty">暂无记录</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- 分类明细弹层 -->
+  <div class="detail-modal" id="detailModal">
+    <div class="detail-box">
+      <div class="detail-head">
+        <span id="detailTitle">分类明细</span>
+        <button class="detail-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-sum" id="detailSum"></div>
+      <div class="detail-list" id="detailList"></div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+// ── 从 Jinja 传来的数据 ──
+const byCategoryData  = {{ by_category  | tojson }};
+const dailyTrendData  = {{ daily_trend  | tojson }};
+const isExpense       = {{ 'true' if is_expense else 'false' }};
+const curMode         = "{{ cur_mode }}";
+const yearMonth       = "{{ year_month }}";
+const yearTrendData   = {{ monthly_trend | tojson }};
+const currentView     = "{{ view }}";
+const currentYear     = "{{ year if year is defined else year_month[:4] }}";
+const currentDay      = "{{ day if day is defined else '' }}";
+
+// 主题色
+const THEME_COLOR  = isExpense ? "#29a96a" : "#f5a623";
+const THEME_COLORS = isExpense
+  ? ["#29a96a","#5bc891","#85d6ae","#aae2c8","#cdeedd","#e8f7ef","#52b47c","#72c698","#38a06a"]
+  : ["#f5a623","#f7bc5c","#f9cf8a","#fbe0b2","#fcedd4","#e89010","#d4820a","#c47300","#fcc050"];
+
+// ── 饼图 ──
+if (byCategoryData.length > 0) {
+  const pieCtx = document.getElementById('categoryPie').getContext('2d');
+  const total = byCategoryData.reduce((s,d) => s + d.total, 0);
+
+  const colors = byCategoryData.map((_,i) => THEME_COLORS[i % THEME_COLORS.length]);
+
+  new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: byCategoryData.map(d => d.category),
+      datasets: [{ data: byCategoryData.map(d => d.total), backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }]
+    },
+    options: {
+      cutout: '62%',
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label}  ${(ctx.parsed / total * 100).toFixed(1)}%` }
+      }},
+      animation: { duration: 600 }
+    }
+  });
+
+  // 图例
+  const legend = document.getElementById('pieLegend');
+  byCategoryData.slice(0, 5).forEach((d, i) => {
+    const pct = (d.total / total * 100).toFixed(1);
+    legend.innerHTML += `<div class="legend-item" style="cursor:pointer" onclick="showCategoryDetail('${d.category}')">
+      <div class="legend-dot" style="background:${colors[i]}"></div>
+      <div class="legend-name">${d.category}</div>
+      <div class="legend-pct">${pct}%</div>
+    </div>`;
+  });
+}
+
+// ── 每日柱状图 ──
+if (dailyTrendData.length > 0) {
+  const barCtx = document.getElementById('trendBar').getContext('2d');
+  const today  = new Date().toISOString().slice(0, 10);
+  const totals = dailyTrendData.map(d => d.total);
+  const maxTotal = Math.max(...totals, 0);
+
+  // 断轴方案：大多数天只花几十/几百，偶尔一天上千上万。
+  // 0~B1 与 B2~max 两段按正常比例显示，B1~B2 中间区间压缩成很矮的一段：
+  // 日常柱子不会被一天的超大额压成看不见，超大额柱子也不用“截断”成假数据。
+  const nonZero = totals.filter(v => v > 0).sort((a, b) => a - b);
+  const median  = nonZero.length ? nonZero[Math.floor(nonZero.length / 2)] : 0;
+  const B1 = Math.max(100, median * 3);  // 正常区间上限
+  const B2 = Math.max(B1 * 5, B1 + 2000); // 超高区间起点（中间区间压缩）
+  const useBroken = maxTotal > B2;
+
+  // 真实金额 -> 显示高度（0~100）
+  function dispVal(v) {
+    if (v <= B1) return v / B1 * 70;
+    if (v <= B2) return 70 + (v - B1) / (B2 - B1) * 10;
+    return 80 + (v - B2) / (maxTotal - B2) * 20;
+  }
+  // 显示高度 -> 真实金额（坐标刻度标签用）
+  function realVal(d) {
+    if (d <= 70) return d / 70 * B1;
+    if (d <= 80) return B1 + (d - 70) / 10 * (B2 - B1);
+    return B2 + (d - 80) / 20 * (maxTotal - B2);
+  }
+
+  const displayData = totals.map(dispVal);
+
+  // 断轴标记（坐标轴上的 // 符号）
+  const brokenAxisPlugin = {
+    id: 'brokenAxis',
+    afterDraw(chart) {
+      if (!useBroken) return;
+      const { ctx, chartArea } = chart;
+      const y = chart.scales.y;
+      ctx.save();
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1.6;
+      [70, 80].forEach(pd => {
+        const py = y.getPixelForValue(pd);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left - 8, py - 4);
+        ctx.lineTo(chartArea.left + 2, py + 4);
+        ctx.moveTo(chartArea.left - 2, py - 4);
+        ctx.lineTo(chartArea.left + 8, py + 4);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+
+  new Chart(barCtx, {
+    type: 'bar',
+    plugins: [brokenAxisPlugin],
+    data: {
+      labels: dailyTrendData.map(d => d.day.slice(5)),      // 只显示月-日
+      datasets: [{
+        data: displayData,
+        backgroundColor: dailyTrendData.map(d =>
+          d.day === today ? THEME_COLOR : (isExpense ? 'rgba(41,169,106,0.35)' : 'rgba(245,166,35,0.35)')
+        ),
+        borderRadius: 4,
+        borderSkipped: false,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 8, right: 4, bottom: 0, left: 4 }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => items[0].label + '日',
+            label: ctx => ` ¥${totals[ctx.dataIndex].toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+        y: useBroken ? {
+          min: 0,
+          max: 100,
+          grid: { color: '#f0f0f0' },
+          ticks: { font: { size: 10 }, callback: v => Math.round(realVal(v)) },
+          afterBuildTicks: axis => { if (useBroken) axis.ticks = [0, 70, 80, 100].map(v => ({ value: v })); }
+        } : {
+          grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } }, beginAtZero: true
+        }
+      },
+      animation: { duration: 500 }
+    }
+  });
+
+  if (useBroken) {
+    const note = document.getElementById('trendNote');
+    if (note) {
+      note.style.display = 'block';
+      note.textContent = '金额 0~' + Math.round(B1) + ' 与 ' + Math.round(B2) + ' 以上按正常比例显示，中间区间已压缩，具体金额以悬浮提示为准';
+    }
+  }
+}
+
+// ── 年度 12 个月收支趋势 ──
+if (yearTrendData && yearTrendData.length > 0) {
+  const yctx = document.getElementById('yearTrendChart');
+  if (yctx) {
+    new Chart(yctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: yearTrendData.map(d => d.month + '月'),
+        datasets: [
+          { label: '支出', data: yearTrendData.map(d => d.expense), backgroundColor: 'rgba(41,169,106,0.75)', borderRadius: 4, borderSkipped: false, barPercentage: 0.7, categoryPercentage: 0.55 },
+          { label: '收入', data: yearTrendData.map(d => d.income), backgroundColor: 'rgba(245,166,35,0.75)', borderRadius: 4, borderSkipped: false, barPercentage: 0.7, categoryPercentage: 0.55 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 8, right: 4, bottom: 0, left: 4 } },
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label} ¥${ctx.parsed.y.toFixed(2)}` } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } }, beginAtZero: true }
+        },
+        animation: { duration: 500 }
+      }
+    });
+  }
+}
+
+// ── 切换收入/支出 ──
+function switchMode(mode) {
+  const f = document.getElementById('monthForm') || document.getElementById('dayForm') || document.getElementById('yearForm');
+  const hidden = document.getElementById('hiddenMode');
+  if (hidden) hidden.value = mode;
+  if (f) f.submit();
+}
+
+// ── 月份前进/后退 ──
+function shiftMonth(delta) {
+  const inp = document.getElementById('monthInput');
+  const [y, m] = inp.value.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  const ny = d.getFullYear();
+  const nm = String(d.getMonth() + 1).padStart(2, '0');
+  inp.value = `${ny}-${nm}`;
+  document.getElementById('monthForm').submit();
+}
+
+// ── 日期前进/后退（按天视图） ──
+function shiftDay(delta) {
+  const inp = document.getElementById('dayInput');
+  const d = new Date(inp.value + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  inp.value = `${y}-${m}-${dd}`;
+  document.getElementById('dayForm').submit();
+}
+
+// ── 日/月/年视图切换 ──
+function switchView(v) {
+  if (v === 'year') {
+    const inp = document.getElementById('monthInput');
+    const year = inp ? inp.value.slice(0, 4) : new Date().getFullYear();
+    location.href = "{{ url_for('stats') }}?mode=" + curMode + "&view=year&year=" + year;
+  } else if (v === 'day') {
+    const day = currentDay || new Date().toISOString().slice(0, 10);
+    location.href = "{{ url_for('stats') }}?mode=" + curMode + "&view=day&day=" + day;
+  } else {
+    const inp = document.getElementById('yearInput');
+    const year = inp ? inp.value : new Date().getFullYear();
+    location.href = "{{ url_for('stats') }}?mode=" + curMode + "&view=month&month=" + year + "-01";
+  }
+}
+
+// ── 年份前进/后退 ──
+function shiftYear(delta) {
+  const inp = document.getElementById('yearInput');
+  const y = (parseInt(inp.value, 10) || new Date().getFullYear()) + delta;
+  inp.value = y;
+  document.getElementById('yearForm').submit();
+}
+
+// ── 分类明细钻取 ──
+function showCategoryDetail(category) {
+  const params = new URLSearchParams();
+  params.set('mode', curMode);
+  if (currentView === 'year') {
+    params.set('view', 'year');
+    params.set('year', currentYear);
+  } else if (currentView === 'day') {
+    params.set('view', 'day');
+    params.set('day', currentDay);
+  } else {
+    params.set('month', yearMonth);
+  }
+  params.set('category', category);
+  document.getElementById('detailTitle').textContent = category + ' 明细';
+  document.getElementById('detailSum').textContent = '加载中…';
+  document.getElementById('detailList').innerHTML = '';
+  document.getElementById('detailModal').classList.add('open');
+  fetch("{{ url_for('stats_category_detail') }}?" + params.toString())
+    .then(r => r.json())
+    .then(data => {
+      if (!data.length) {
+        document.getElementById('detailList').innerHTML = '<div class="detail-empty">暂无记录</div>';
+        document.getElementById('detailSum').textContent = '共 0 笔';
+        return;
+      }
+      const total = data.reduce((s, x) => s + x.amount, 0);
+      document.getElementById('detailSum').textContent = '共 ' + data.length + ' 笔 · 合计 ¥' + total.toFixed(2);
+      document.getElementById('detailList').innerHTML = data.map(x =>
+        '<div class="detail-item">' +
+        '<div class="d-info"><div class="d-merchant">' + esc(x.merchant || x.product || '（无描述）') + '</div>' +
+        '<div class="d-time">' + x.time + '</div></div>' +
+        '<div class="d-amount">' + (isExpense ? '-' : '+') + x.amount.toFixed(2) + '</div></div>'
+      ).join('');
+    })
+    .catch(() => {
+      document.getElementById('detailList').innerHTML = '<div class="detail-empty">加载失败，请重试</div>';
+      document.getElementById('detailSum').textContent = '';
+    });
+}
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── 展开更多分类 ──
+function toggleMore() {
+  const more = document.getElementById('moreList');
+  const btn  = document.getElementById('showMoreBtn');
+  if (more.style.display === 'none') {
+    more.style.display = 'block';
+    btn.textContent = '收起 ▴';
+  } else {
+    more.style.display = 'none';
+    btn.textContent = '展开更多 ▾';
+  }
+}
+
+// ── 主题切换 + PWA ──
+function toggleTheme() {
+  const root = document.documentElement;
+  const dark = root.getAttribute('data-theme') === 'dark';
+  if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+  try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = dark ? '🌙' : '☀️';
+}
+(function () {
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+  }
+})();
+
+// ── 展开/收起全部排行明细 ──
+function toggleAllTx() {
+  const extra = document.getElementById('txExtraList');
+  const btn   = document.getElementById('txShowMoreBtn');
+  if (!extra || !btn) return;
+  if (extra.style.display === 'none') {
+    extra.style.display = 'block';
+    btn.textContent = '收起 ▴';
+  } else {
+    extra.style.display = 'none';
+    btn.textContent = '全部排行 ▾';
+  }
+}
+</script>
+</body>
+</html>

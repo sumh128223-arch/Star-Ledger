@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>注册 - 繁星记账本</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg1.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg6.jpg') }}");
+      --overlay-opacity: 0.3;
+      --green: #e3f2d9;
+      --green-border: #1a1a1a;
+      --pink: #fadbdf;
+      --pink-border: #1a1a1a;
+      --ink: #1a1a1a;
+      --muted: #555;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Microsoft YaHei", sans-serif;
+      background: #f2f3f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .register-card {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+      padding: 36px 34px 30px;
+      backdrop-filter: blur(4px);
+    }
+
+    .brand {
+      margin: 0 0 6px;
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .brand-sub {
+      margin: 0 0 24px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .flash-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .flash {
+      color: #b00020;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fdecea;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 8px 14px;
+      text-align: center;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .field input {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 2px solid #d9d9d9;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .field input:focus {
+      border-color: #7ea86a;
+      box-shadow: 0 0 0 3px rgba(126, 168, 106, 0.25);
+    }
+    .field input::placeholder { color: #aaa; }
+
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 46px; }
+    .toggle-pwd {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: none;
+      font-size: 16px;
+      cursor: pointer;
+      color: #777;
+      padding: 6px;
+    }
+    .toggle-pwd:hover { color: var(--ink); }
+
+    .register-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 13px 20px;
+      border-radius: 10px;
+      border: 2.5px solid var(--pink-border);
+      background: var(--pink);
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .register-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+    .register-btn:focus-visible { outline: 3px solid #4a5aa8; outline-offset: 3px; }
+    .register-btn:active { transform: translateY(0); }
+
+    .alt-line {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .alt-line a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .alt-line a:hover { text-decoration: underline; }
+
+    .agreement-line {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .agreement-line a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .agreement-line a:hover { text-decoration: underline; }
+
+    .doc-line {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .doc-line a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .doc-line a:hover { text-decoration: underline; }
+
+    .hint {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      .page-wrap { --bg-image: var(--bg-image-mobile); }
+    }
+    .theme-btn-float {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid #1a1a1a;
+      background: rgba(255, 255, 255, 0.88);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .register-card { background: rgba(28, 30, 38, 0.95); }
+    [data-theme="dark"] .brand { color: #e8e8ec; }
+    [data-theme="dark"] .brand-sub, [data-theme="dark"] .hint { color: #9aa0ab; }
+    [data-theme="dark"] .field label { color: #e8e8ec; }
+    [data-theme="dark"] .field input { background: #23252e; color: #e8e8ec; border-color: #3a3d49; }
+    [data-theme="dark"] .register-btn { background: #4a2f33; border-color: #a58a8e; color: #e8e8ec; }
+    [data-theme="dark"] .alt-line { color: #9aa0ab; }
+    [data-theme="dark"] .alt-line a { color: #8fd07a; }
+    [data-theme="dark"] .agreement-line { color: #9aa0ab; }
+    [data-theme="dark"] .agreement-line a { color: #8fd07a; }
+    [data-theme="dark"] .doc-line { color: #9aa0ab; }
+    [data-theme="dark"] .doc-line a { color: #8fd07a; }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+
+    @media (max-width: 480px) {
+      .register-card { padding: 28px 22px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <button type="button" id="themeBtn" class="theme-btn-float" onclick="toggleTheme()" title="切换深色/浅色">🌙</button>
+  <div class="page-wrap">
+    <div class="register-card">
+      <h1 class="brand">创建新账号</h1>
+      <p class="brand-sub">注册后即可使用繁星记账本</p>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('auth.register') }}">
+        <div class="field">
+          <label for="username">用户名（前缀）</label>
+          <input id="username" name="username" type="text" placeholder="2~10 个字符" required autofocus autocomplete="username">
+          <p class="hint">请输入2~10个字符，该记账本账号会自动增加后缀@star</p>
+        </div>
+        <div class="field">
+          <label for="nickname">昵称（选填）</label>
+          <input id="nickname" name="nickname" type="text" placeholder="不填默认使用用户名" autocomplete="nickname">
+          <p class="hint">不填则默认使用用户名（不含 @star）作为昵称</p>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" placeholder="至少 4 位" required autocomplete="new-password">
+            <button type="button" class="toggle-pwd" aria-label="显示/隐藏密码">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="confirm">确认密码</label>
+          <input id="confirm" name="confirm" type="password" placeholder="再输入一次密码" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="register-btn">注 册</button>
+      </form>
+
+      <p class="agreement-line">注册即表示你已阅读并同意 <a href="{{ url_for('agreement') }}">《用户协议》</a></p>
+      <p class="doc-line">📖 <a href="{{ url_for('manual') }}" target="_blank">用户使用说明</a>（<a href="{{ url_for('manual', download=1) }}">下载</a>）· 登录后可在「个人设置」查看</p>
+
+      <p class="alt-line">已有账号？<a href="{{ url_for('auth.login') }}">返回登录</a></p>
+    </div>
+  </div>
+
+  <script>
+    const toggle = document.querySelector('.toggle-pwd');
+    const pwd = document.getElementById('password');
+    toggle.addEventListener('click', () => {
+      const show = pwd.type === 'password';
+      pwd.type = show ? 'text' : 'password';
+      toggle.textContent = show ? '🙈' : '👁️';
+      toggle.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+    });
+  </script>
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

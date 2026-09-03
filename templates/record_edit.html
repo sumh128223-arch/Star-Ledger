@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>繁星记账本 · 修改记录</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg2.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg11.jpg') }}");
+      --bg-size: cover;
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f2f3f5; }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6vh 6vw 10vh;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: var(--bg-size);
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.95);
+    }
+    .subtitle {
+      margin: 10px 0 24px;
+      font-size: 14px;
+      color: #333;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    }
+
+    .flash-wrap { margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .flash {
+      color: #b00020;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      padding: 8px 18px;
+    }
+
+    .card {
+      width: min(460px, 92vw);
+      background: rgba(255, 255, 255, 0.92);
+      border: 2.5px solid var(--ink);
+      border-radius: 14px;
+      padding: 28px 26px 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+    }
+
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .field select,
+    .field input {
+      width: 100%;
+      padding: 11px 12px;
+      font-size: 16px;
+      font-family: inherit;
+      border: 2px solid #b9bdc4;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+    }
+    .field select:focus,
+    .field input:focus {
+      outline: none;
+      border-color: #4a5aa8;
+      box-shadow: 0 0 0 3px rgba(74, 90, 168, 0.15);
+    }
+
+    .submit-btn {
+      width: 100%;
+      margin-top: 6px;
+      padding: 14px;
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink);
+      background: #e3f2d9;
+      border: 2.5px solid var(--ink);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18); }
+
+    .nav-links {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+    }
+    .nav-links a {
+      color: #333;
+      font-weight: 700;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1.5px solid #333;
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 14px;
+    }
+    .nav-links a:hover { text-decoration: underline; }
+
+    .user-bar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .user-bar .user-name {
+      white-space: nowrap;
+      color: inherit;
+      text-decoration: none;
+    }
+    .user-bar .user-name:hover { text-decoration: underline; }
+    .user-bar .user-logout {
+      color: #b00020;
+      text-decoration: none;
+      border-left: 1.5px solid #ccc;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .user-bar .user-logout:hover { text-decoration: underline; }
+
+    .theme-btn { border: none; background: none; font-size: 16px; cursor: pointer; padding: 0 2px; }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .title,
+    [data-theme="dark"] .subtitle { color: #f0f0f4; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+    [data-theme="dark"] .subtitle { color: #c6c9d2; }
+    [data-theme="dark"] .card { background: rgba(28, 30, 38, 0.95); border-color: #8aa58c; }
+    [data-theme="dark"] .field label { color: #e8e8ec; }
+    [data-theme="dark"] .field select, [data-theme="dark"] .field input { background: #23252e; color: #e8e8ec; border-color: #3a3d49; }
+    [data-theme="dark"] .submit-btn { background: #2d4a2f; border-color: #8aa58c; color: #e8e8ec; }
+    [data-theme="dark"] .nav-links a { background: rgba(28, 30, 38, 0.9); color: #d5d7de; border-color: #6a6e7a; }
+    [data-theme="dark"] .user-bar { background: rgba(28, 30, 38, 0.92); }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+
+      @media (max-width: 640px) {
+      .page-wrap { padding: 56px 14px 28px; --bg-image: var(--bg-image-mobile); }
+      .title { font-size: 24px; }
+      .subtitle { margin: 8px 0 16px; font-size: 13px; }
+      .card { width: 100%; padding: 20px 16px 22px; }
+      .field { margin-bottom: 14px; }
+      .field label { font-size: 13px; }
+      .field select, .field input { padding: 10px 10px; font-size: 15px; }
+      .submit-btn { padding: 13px; font-size: 16px; }
+      .nav-links { gap: 12px; }
+      .nav-links a { padding: 6px 12px; font-size: 13px; }
+      .user-bar { top: 10px; right: 10px; padding: 5px 12px; font-size: 12px; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+  <h1 class="title">✏️ 修改记录</h1>
+  <p class="subtitle">修改后点击保存</p>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <form class="card" method="post">
+    <div class="field">
+      <label for="incomeExpense">收/支</label>
+      <select id="incomeExpense" name="income_expense">
+        <option value="支出" {% if record.income_expense == '支出' %}selected{% endif %}>支出</option>
+        <option value="收入" {% if record.income_expense == '收入' %}selected{% endif %}>收入</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="amount">金额（元）</label>
+      <input type="number" id="amount" name="amount" min="0.01" step="0.01" required value="{{ '%.2f'|format(record.amount) }}">
+    </div>
+
+    <div class="field">
+      <label for="transTime">时间</label>
+      <input type="datetime-local" id="transTime" name="trans_time" required value="{{ record.trans_time.strftime('%Y-%m-%dT%H:%M') }}">
+    </div>
+
+    <div class="field">
+      <label for="categorySelect">类型</label>
+      <select id="categorySelect" name="category_id" required>
+        {% for c in categories %}
+        <option value="{{ c.id }}" data-type="{{ c.type }}" {% if record.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="merchant">对方 / 对象</label>
+      <input type="text" id="merchant" name="merchant" value="{{ record.merchant }}">
+    </div>
+
+    <button type="submit" class="submit-btn">保存修改</button>
+  </form>
+
+  <div class="nav-links">
+    <a href="{{ url_for('records') }}">← 返回编辑记录</a>
+    <a href="{{ url_for('index') }}">返回主页面</a>
+  </div>
+</div>
+
+<script>
+  const incomeExpense = document.getElementById('incomeExpense');
+  const categorySelect = document.getElementById('categorySelect');
+
+  function filterCategories() {
+    const target = incomeExpense.value === '收入' ? 'income' : 'expense';
+    let visibleSelected = false;
+    for (const opt of categorySelect.options) {
+      if (!opt.value) continue;
+      const show = opt.dataset.type === target;
+      opt.hidden = !show;
+      if (show && opt.selected) visibleSelected = true;
+    }
+    if (!visibleSelected) categorySelect.value = '';
+  }
+
+  incomeExpense.addEventListener('change', filterCategories);
+  filterCategories();
+</script>
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

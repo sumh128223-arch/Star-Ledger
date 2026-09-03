@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>繁星记账本 · 编辑/查询记录</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg1.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg5.jpg') }}");
+      --bg-size: cover;
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f2f3f5; }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6vh 5vw 8vh;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: var(--bg-size);
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.95);
+    }
+    .subtitle {
+      margin: 8px 0 22px;
+      font-size: 14px;
+      color: #444;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    }
+
+    .flash-wrap { margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .flash {
+      color: #b00020;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 8px;
+      padding: 8px 18px;
+    }
+
+    .list { width: min(620px, 94vw); display: flex; flex-direction: column; gap: 12px; }
+
+    .record-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+    .record-top { display: flex; align-items: center; gap: 8px; }
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 999px;
+      color: #fff;
+    }
+    .badge-income { background: #2e9e5b; }
+    .badge-expense { background: #d64545; }
+    .amount { font-size: 17px; font-weight: 800; }
+    .amount-income { color: #2e9e5b; }
+    .amount-expense { color: #d64545; }
+    .record-meta { margin-top: 6px; font-size: 13px; color: #666; }
+
+    .record-actions { display: flex; align-items: center; gap: 8px; }
+    .act {
+      display: inline-block;
+      padding: 7px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 999px;
+      border: 2px solid var(--ink);
+      text-decoration: none;
+      cursor: pointer;
+      background: #fff;
+      color: var(--ink);
+    }
+    .act-edit { background: #dcecfc; }
+    .act-del { background: #fde3e3; color: #b00020; }
+
+    .empty {
+      width: min(620px, 94vw);
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px dashed #999;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      color: #666;
+      font-size: 15px;
+    }
+    .empty a { color: #4a5aa8; font-weight: 700; }
+
+    .nav-links {
+      margin-top: 22px;
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+    }
+    .nav-links a {
+      color: #333;
+      font-weight: 700;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1.5px solid #333;
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 14px;
+    }
+    .nav-links a:hover { text-decoration: underline; }
+
+    .user-bar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .user-bar .user-name {
+      white-space: nowrap;
+      color: inherit;
+      text-decoration: none;
+    }
+    .user-bar .user-name:hover { text-decoration: underline; }
+    .user-bar .user-logout {
+      color: #b00020;
+      text-decoration: none;
+      border-left: 1.5px solid #ccc;
+      padding-left: 10px;
+      white-space: nowrap;
+    }
+    .user-bar .user-logout:hover { text-decoration: underline; }
+
+    /* ── 筛选栏 ── */
+    .filter-bar {
+      width: min(620px, 94vw);
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .filter-row input, .filter-row select {
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      border: 2px solid #d9d9d9;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      min-width: 0;
+    }
+    .filter-row input[type="date"] { flex: 1; min-width: 120px; }
+    .filter-row input[type="text"] { flex: 2; min-width: 150px; }
+    .filter-row input[type="number"] { flex: 1; min-width: 90px; }
+    .filter-sep { font-size: 12px; color: #666; }
+    .filter-btn {
+      padding: 8px 18px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 999px;
+      border: 2px solid var(--ink);
+      background: #dcecfc;
+      color: var(--ink);
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+    }
+    .filter-clear { background: #fff; }
+
+    .theme-btn { border: none; background: none; font-size: 16px; cursor: pointer; padding: 0 2px; }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] {
+      --ink: #e8e8ec;
+      --overlay-color: 12, 14, 20;
+    }
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .title,
+    [data-theme="dark"] .subtitle { color: #f0f0f4; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+    [data-theme="dark"] .subtitle { color: #c6c9d2; }
+    [data-theme="dark"] .record-row,
+    [data-theme="dark"] .empty,
+    [data-theme="dark"] .filter-bar { background: rgba(28, 30, 38, 0.95); }
+    [data-theme="dark"] .record-meta { color: #9aa0ab; }
+    [data-theme="dark"] .filter-row input,
+    [data-theme="dark"] .filter-row select { background: #23252e; color: #e8e8ec; border-color: #3a3d49; }
+    [data-theme="dark"] .filter-btn { background: #23252e; }
+    [data-theme="dark"] .user-bar { background: rgba(28, 30, 38, 0.92); }
+    [data-theme="dark"] .nav-links a { background: rgba(28, 30, 38, 0.9); color: #d5d7de; border-color: #6a6e7a; }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+
+      @media (max-width: 640px) {
+      .page-wrap { padding: 56px 12px 24px; --bg-image: var(--bg-image-mobile); }
+      .title { font-size: 24px; }
+      .subtitle { margin: 8px 0 16px; font-size: 13px; }
+      .list { width: 100%; gap: 10px; }
+      .record-row { padding: 10px 10px; gap: 8px; flex-wrap: wrap; }
+      .amount { font-size: 15px; }
+      .record-meta { font-size: 12px; }
+      .record-actions { gap: 6px; }
+      .act { padding: 6px 10px; font-size: 12px; }
+      .empty { width: 100%; padding: 28px 14px; }
+      .nav-links { gap: 12px; }
+      .nav-links a { padding: 6px 12px; font-size: 13px; }
+      .user-bar { top: 10px; right: 10px; padding: 5px 12px; font-size: 12px; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+  <h1 class="title">✏️ 编辑 / 查询记录</h1>
+  <p class="subtitle">{% if filters.searching %}筛选结果 {{ records|length }} 条 · 支持时间 / 收支 / 分类 / 对象 / 金额{% else %}共 {{ records|length }} 条手动记录 · 可修改时间 / 类型 / 金额 / 对象，也可删除{% endif %}</p>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <form class="filter-bar" method="get" action="{{ url_for('records') }}">
+    <div class="filter-row">
+      <input type="date" name="start" value="{{ filters.start }}" title="开始日期">
+      <span class="filter-sep">至</span>
+      <input type="date" name="end" value="{{ filters.end }}" title="结束日期">
+      <select name="income_expense">
+        <option value="">收/支</option>
+        <option value="支出" {% if filters.income_expense == '支出' %}selected{% endif %}>支出</option>
+        <option value="收入" {% if filters.income_expense == '收入' %}selected{% endif %}>收入</option>
+      </select>
+      <select name="category_id">
+        <option value="">全部分类</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if filters.category_id == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-row">
+      <input type="text" name="merchant" value="{{ filters.merchant }}" placeholder="对方 / 对象 关键词">
+      <input type="number" name="amount_min" value="{{ filters.amount_min }}" placeholder="金额 ≥" min="0" step="0.01">
+      <input type="number" name="amount_max" value="{{ filters.amount_max }}" placeholder="金额 ≤" min="0" step="0.01">
+      <button type="submit" class="filter-btn">查询</button>
+      {% if filters.searching %}<a class="filter-btn filter-clear" href="{{ url_for('records') }}">清除</a>{% endif %}
+    </div>
+  </form>
+
+  {% if records %}
+  <div class="list">
+    {% for r in records %}
+    <div class="record-row">
+      <div class="record-main">
+        <div class="record-top">
+          <span class="badge {{ 'badge-income' if r.income_expense == '收入' else 'badge-expense' }}">{{ r.income_expense }}</span>
+          <span class="amount {{ 'amount-income' if r.income_expense == '收入' else 'amount-expense' }}">{{ '%.2f'|format(r.amount) }}</span>
+        </div>
+        <div class="record-meta">{{ r.trans_time.strftime('%Y-%m-%d %H:%M') }} · {{ r.merchant }} · {{ r.category }}</div>
+      </div>
+      <div class="record-actions">
+        {% if r.is_manual %}
+        <a class="act act-edit" href="{{ url_for('record_edit', record_id=r.id) }}">编辑</a>
+        <form method="post" action="{{ url_for('record_delete', record_id=r.id) }}" onsubmit="return confirm('确定删除这条记录吗？');">
+          <button type="submit" class="act act-del">删除</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">暂无手动记录，去 <a href="{{ url_for('manual_add') }}">手动记账</a> 添加一条吧</div>
+  {% endif %}
+
+  <div class="nav-links">
+    <a href="{{ url_for('index') }}">← 返回主页面</a>
+    <a href="{{ url_for('stats') }}">查看统计</a>
+  </div>
+</div>
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>

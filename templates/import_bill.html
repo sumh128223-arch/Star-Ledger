@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>繁星记账本 · {{ title }}</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg3.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg8.jpg') }}");
+      --bg-size: cover;
+      --overlay-opacity: 0.3;
+      --ink: #1a1a1a;
+      {% if kind == 'alipay' %}
+      --accent-bg: #dcecfc;
+      {% else %}
+      --accent-bg: #e3f2d9;
+      {% endif %}
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f2f3f5; }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6vh 5vw 8vh;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: var(--bg-size);
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.95);
+    }
+    .subtitle {
+      margin: 8px 0 24px;
+      font-size: 13px;
+      color: #444;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+    }
+
+    .flash-wrap { margin-bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .flash { color: #b00020; font-weight: 700; background: rgba(255, 255, 255, 0.92); border-radius: 8px; padding: 8px 18px; }
+
+    .import-card {
+      width: min(420px, 92vw);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 22px 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    .import-head { display: flex; align-items: center; gap: 10px; }
+    .import-logo { font-size: 32px; line-height: 1; }
+    .import-name { font-size: 18px; font-weight: 800; }
+
+    .file-pick {
+      display: block;
+      width: 100%;
+      padding: 14px 10px;
+      border: 2px dashed #999;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.75);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      color: #444;
+      cursor: pointer;
+      word-break: break-all;
+    }
+    .file-pick:hover { border-color: #4a5aa8; background: #fff; }
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 14px 10px;
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      background: var(--accent-bg);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18); }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 4px;
+      font-size: 13px;
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .tips {
+      width: min(420px, 92vw);
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    .tips-title { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+    .tips-list { margin: 0; padding-left: 20px; }
+    .tips-list li { font-size: 13px; line-height: 1.7; color: var(--ink); margin-bottom: 5px; }
+    .tips-list b { color: #2f6f1f; }
+    .tips-export {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.05);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #444;
+    }
+    .file-pick-alt {
+      border-style: solid;
+      border-color: #4a5aa8;
+      background: rgba(74, 90, 168, 0.08);
+      color: #33417e;
+    }
+    .mobile-only { display: none; }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] { --ink: #e8e8ec; }
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .title { color: #f0f0f4; text-shadow: 0 0 12px rgba(0, 0, 0, 0.8); }
+    [data-theme="dark"] .subtitle { color: #c6c9d2; }
+    [data-theme="dark"] .import-card { background: rgba(28, 30, 38, 0.95); border-color: #8aa58c; }
+    [data-theme="dark"] .file-pick { background: rgba(45, 48, 65, 0.8); border-color: #6a7296; color: #c9cde0; }
+    [data-theme="dark"] .file-pick:hover { border-color: #8aa58c; background: rgba(60, 64, 84, 0.9); }
+    [data-theme="dark"] .flash { background: rgba(60, 20, 24, 0.95); }
+    [data-theme="dark"] .back-link { color: #8fd07a; }
+    [data-theme="dark"] .tips { background: rgba(28, 30, 38, 0.95); border-color: #8aa58c; }
+    [data-theme="dark"] .tips-title, [data-theme="dark"] .tips-list li { color: #e8e8ec; }
+    [data-theme="dark"] .tips-list b { color: #8fd07a; }
+    [data-theme="dark"] .tips-export { background: rgba(255, 255, 255, 0.06); color: #c6c9d2; }
+    [data-theme="dark"] .file-pick-alt { border-color: #8aa58c; background: rgba(74, 90, 168, 0.18); color: #c9cde0; }
+
+    @media (max-width: 640px) {
+      .page-wrap { padding: 56px 12px 26px; --bg-image: var(--bg-image-mobile); justify-content: flex-start; }
+      .title { font-size: 24px; }
+      .import-card { padding: 16px 14px; }
+      .mobile-only { display: block; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+  <h1 class="title">{{ emoji }} {{ title }}</h1>
+  <p class="subtitle">{{ subtitle }}</p>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="import-card">
+    <div class="import-head">
+      <span class="import-logo">{{ emoji }}</span>
+      <span class="import-name">选择账单文件</span>
+    </div>
+    <form action="{{ url_for(upload_ep) }}" method="post" enctype="multipart/form-data" id="uploadForm">
+      <label class="file-pick" for="billFile"><span class="file-pick-text">点击选择{{ '微信' if kind == 'wechat' else '支付宝' }}账单文件（csv / xlsx）</span></label>
+      <label class="file-pick file-pick-alt mobile-only" for="billFile">💬 从微信聊天记录 / 最近文件选（手机推荐）</label>
+      <input type="file" id="billFile" class="file-input" name="bill_file" accept=".csv,.xlsx,.xls" required>
+      <button type="submit" class="submit-btn">⬆️ 解析并预览</button>
+    </form>
+    <a class="back-link" href="{{ url_for('index') }}">← 返回主页面</a>
+  </div>
+
+  <div class="tips">
+    <div class="tips-title">📱 手机导入小贴士</div>
+    <ol class="tips-list">
+      <li><b>① 导出账单</b>：在{{ '微信' if kind == 'wechat' else '支付宝' }} App 里下载账单文件</li>
+      <li><b>② 发给自己</b>：把文件发到微信「文件传输助手」或任意好友/群</li>
+      <li id="stepPick"><b>③ 回来选文件</b>：点上面的「选择账单文件」，在文件选择器里选刚发的那个文件</li>
+    </ol>
+    <div class="tips-export">
+      {% if kind == 'wechat' %}
+      📥 微信导出入口：我 → 服务 → 钱包 → 账单 → 右上角「常见问题」→ 下载账单
+      {% else %}
+      📥 支付宝导出入口：我的 → 账单 → 右上角 ⋯ → 开具交易流水证明
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  const input = document.getElementById('billFile');
+  const textEl = document.querySelector('.file-pick-text');
+  input.addEventListener('change', () => {
+    textEl.textContent = input.files && input.files.length > 0
+      ? '已选择：' + input.files[0].name
+      : '点击选择账单文件';
+  });
+  (function () {
+    if (/MicroMessenger/i.test(navigator.userAgent)) {
+      var el = document.getElementById('stepPick');
+      if (el) el.innerHTML = '<b>③ 回来选文件</b>：点上面的按钮后，切到<b>「文件」</b>标签（聊天里收到的文件在「最近」里），选中刚发的文件即可';
+    }
+  })();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+  }
+</script>
+</body>
+</html>

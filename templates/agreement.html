@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用户协议 - 繁星记账本</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#4a5aa8">
+  <link rel="icon" href="{{ url_for('static', filename='images/app-icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/app-icon-180.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="繁星记账本">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('fx-theme');
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      /* 背景图：电脑横屏（默认） */
+      --bg-image: url("{{ url_for('static', filename='images/bg.jpg') }}");
+      /* 背景图：手机竖屏（屏幕 ≤640px 自动切换） */
+      --bg-image-mobile: url("{{ url_for('static', filename='images/bg5.jpg') }}");
+      --overlay-opacity: 0.3;
+      --green: #e3f2d9;
+      --green-border: #1a1a1a;
+      --ink: #1a1a1a;
+      --muted: #555;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Microsoft YaHei", sans-serif;
+      background: #f2f3f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, var(--overlay-opacity)), rgba(255, 255, 255, var(--overlay-opacity))),
+        var(--bg-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+
+    .agreement-card {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(255, 255, 255, 0.93);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+      padding: 34px 32px 28px;
+      backdrop-filter: blur(4px);
+    }
+
+    .brand {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .brand-sub {
+      margin: 0 0 22px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .section { margin-bottom: 18px; }
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      padding-left: 10px;
+      border-left: 4px solid #4a5aa8;
+    }
+    .section p {
+      margin: 0 0 8px;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: var(--ink);
+    }
+    .section ul { margin: 0; padding-left: 20px; }
+    .section li {
+      margin-bottom: 6px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--ink);
+    }
+    .section a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .section a:hover { text-decoration: underline; }
+
+    .alt-line {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(0, 0, 0, 0.12);
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .alt-line a {
+      color: #2f6f1f;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .alt-line a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .page-wrap {
+        --bg-image: var(--bg-image-mobile);
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 56px 12px 26px;
+        overflow-y: auto;
+      }
+      .agreement-card { margin: 0 auto; }
+    }
+    .theme-btn-float {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid #1a1a1a;
+      background: rgba(255, 255, 255, 0.88);
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    /* ── 深色模式 ── */
+    [data-theme="dark"] body { background: #12141a; }
+    [data-theme="dark"] .page-wrap {
+      background-image:
+        linear-gradient(rgba(12, 14, 20, 0.72), rgba(12, 14, 20, 0.72)),
+        var(--bg-image);
+    }
+    [data-theme="dark"] .agreement-card { background: rgba(28, 30, 38, 0.95); }
+    [data-theme="dark"] .brand { color: #e8e8ec; }
+    [data-theme="dark"] .brand-sub { color: #9aa0ab; }
+    [data-theme="dark"] .section h2 { color: #e8e8ec; }
+    [data-theme="dark"] .section p, [data-theme="dark"] .section li { color: #d5d8e0; }
+    [data-theme="dark"] .section a { color: #8fd07a; }
+    [data-theme="dark"] .alt-line { color: #9aa0ab; }
+    [data-theme="dark"] .alt-line a { color: #8fd07a; }
+
+    @media (max-width: 480px) {
+      .agreement-card { padding: 24px 20px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <button type="button" id="themeBtn" class="theme-btn-float" onclick="toggleTheme()" title="切换深色/浅色">🌙</button>
+  <div class="page-wrap">
+    <div class="agreement-card">
+      <h1 class="brand">用户协议</h1>
+      <p class="brand-sub">欢迎使用繁星记账本 · 最后更新：2026-08-06</p>
+
+      <div class="section">
+        <h2>一、关于本项目</h2>
+        <p>本网页是作者本人的一个实习开发项目，仅供学习与技术交流使用，不构成任何商业服务。作者会尽力保障服务的稳定运行，但不对服务的连续性、准确性等作出任何承诺。</p>
+      </div>
+
+      <div class="section">
+        <h2>二、背景图片来源声明</h2>
+        <p>本人喜欢二次元，网页背景大多为二次元网络图片，版权归原作者所有，仅作学习与展示用途。如果图片的使用侵犯了你的权益，请联系作者，我们会在核实后第一时间删除或更换：<a href="mailto:linshuoxia@mails.gdut.edu.cn">linshuoxia@mails.gdut.edu.cn</a></p>
+      </div>
+
+      <div class="section">
+        <h2>三、使用说明</h2>
+        <ul>
+          <li>一人一账号，请妥善保管自己的账号与密码；</li>
+          <li>使用过程中遇到任何问题、有建议或发现错误，欢迎随时联系作者；</li>
+          <li>登录或注册使用本网页，即表示你已阅读并同意本协议。</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>四、联系方式</h2>
+        <p>作者邮箱：<a href="mailto:linshuoxia@mails.gdut.edu.cn">linshuoxia@mails.gdut.edu.cn</a></p>
+        <p>该网页使用过程中有什么问题，欢迎随时联系：<a href="mailto:linshuoxia@mails.gdut.edu.cn">linshuoxia@mails.gdut.edu.cn</a></p>
+      </div>
+
+      <p class="alt-line"><a href="{{ url_for('auth.login') }}">← 返回登录</a></p>
+    </div>
+  </div>
+
+<script>
+  function toggleTheme() {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    if (dark) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'dark'); }
+    try { localStorage.setItem('fx-theme', dark ? 'light' : 'dark'); } catch (e) {}
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = dark ? '🌙' : '☀️';
+  }
+  (function () {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").catch(function () {});
+    }
+  })();
+</script>
+</body>
+</html>
